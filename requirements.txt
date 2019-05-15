@@ -1,3 +1,4 @@
 apache-libcloud
 configparser
 requests
+pycrypto
