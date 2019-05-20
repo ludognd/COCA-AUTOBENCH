@@ -1,8 +1,10 @@
 from Provider import Provider
+from Instance import Instance
+from Benchmark import Benchmark
 from Crypto.PublicKey import RSA
 import argparse
 import ConfigParser
-
+import threading
 
 def run():
     parser = argparse.ArgumentParser(description='Run benchmarks in all instances defined by the config file')
@@ -11,6 +13,9 @@ def run():
     parser.add_argument("--nThreads", type=int, help='Number of threads to start')
     parser.add_argument("--keyLength", type=int, default=2048, help='Length of the generated SSH key')
     args = parser.parse_args()
+
+    key = RSA.generate(2048)
+    keypair = (key.exportKey('PEM'), key.publickey().exportKey('OpenSSH'))
 
     providers_config = ConfigParser.ConfigParser()
     providers_config.read(args.providers)
@@ -24,8 +29,28 @@ def run():
             data.pop("regions")
             providers[provider_name][region] = Provider(provider_name, region, data)
 
-    key = RSA.generate(2048)
-    keypair = (key.exportKey('PEM'), key.publickey().exportKey('OpenSSH'))
+    instances_config = ConfigParser.ConfigParser()
+    instances_config.read(args.instances)
+    jobs = list()
+    for instance_name in instances_config.sections():
+        provider = instances_config.get(instance_name, "provider")
+        region = instances_config.get(instance_name, "region")
+        flavor = instances_config.get(instance_name, "flavor")
+        image = instances_config.get(instance_name, "image")
+        instance = Instance(instance_name, flavor, image)
+        bench = Benchmark(providers[provider][region], instance, keypair)
+        jobs.append(bench)
+
+    nthreads = len(jobs)
+    if args.nThreads is not None:
+        nthreads = args.nThreads
+
+    while jobs:
+        if threading.active_count() <= nthreads:
+            print("Active threads:", str(threading.active_count()-1))
+            job = jobs.pop()
+            print("poped", job.name)
+            job.start()
 
 
 if __name__ == '__main__':

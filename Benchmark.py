@@ -1,13 +1,14 @@
 import requests
 from typing import Tuple
-
+import threading
+import time
 from Instance import Instance
 from Provider import Provider
 
 API_URL = 'http://86.119.37.171:15000'
 
 
-class Benchmark:
+class Benchmark(threading.Thread):
     __instance = None  # type: Instance
     __provider = None  # type: Provider
     __ssh_key = None  # type: Tuple[str, str]
@@ -20,7 +21,7 @@ class Benchmark:
         :param Instance instance: Instance object
         :param (private_key, public_key) ssh_key: ssh key for instance (public and private)
         """
-
+        threading.Thread.__init__(self)
         self.__provider = provider
         self.__instance = instance
         self.__ssh_key = ssh_key
@@ -32,7 +33,7 @@ class Benchmark:
         :return:
         """
         self.__instance.create(self.__provider.connection, self.__ssh_key[1])
-        #self.__run_benchmark()
+        self.__run_benchmark()
 
     def __run_benchmark(self):
         r = requests.post(API_URL + '/benchmark/',

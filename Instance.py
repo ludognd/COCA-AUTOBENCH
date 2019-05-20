@@ -13,9 +13,10 @@ class Instance:
     public_ip = None  # type: str
     username = None  # type: str
 
-    def __init__(self, flavor, image):
+    def __init__(self, name, flavor, image):
         self.flavor = flavor
         self.image = image
+        self.name = name
 
     def create(self, connection, ssh_public_key):
         """
