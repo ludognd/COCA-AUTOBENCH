@@ -37,8 +37,8 @@ def run():
         region = instances_config.get(instance_name, "region")
         flavor = instances_config.get(instance_name, "flavor")
         image = instances_config.get(instance_name, "image")
-        instance = Instance(instance_name, flavor, image)
-        bench = Benchmark(providers[provider][region], instance, keypair)
+        instance = Instance(providers[provider][region], instance_name, flavor, image)
+        bench = Benchmark(instance, keypair)
         jobs.append(bench)
 
     nthreads = len(jobs)
@@ -47,9 +47,7 @@ def run():
 
     while jobs:
         if threading.active_count() <= nthreads:
-            print("Active threads:", str(threading.active_count()-1))
             job = jobs.pop()
-            print("poped", job.name)
             job.start()
 
 

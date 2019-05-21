@@ -1,18 +1,21 @@
 from libcloud.compute.base import NodeDriver
 from libcloud.compute.providers import get_driver
 from libcloud.compute.types import Provider as LibCloudProvider
+import uuid
 
 
 class Provider:
     connection = None  # type: NodeDriver
     name = None  # type: str
     region = None  # type: str
-    ip_type = "public_ips" # type: str
+    ip_type = "public_ips"  # type: str
 
     def __init__(self, name, region, config):
         self.name = name
         self.region = region
         self.connection = self.__create_connection(config)
+        self.secgrp_name = str(uuid.uuid4())
+        self.__create_environment()
 
     def __create_connection(self, data):
         print data, type(data)
@@ -43,3 +46,37 @@ class Provider:
             pass
         else:
             raise Exception('Not supported provider')
+
+    def __create_environment(self):
+        if self.name == "switchengines":
+            self.secgrp = self.connection.ex_create_security_group(self.secgrp_name, self.secgrp_name)
+            self.connection.ex_create_security_group_rule(self.secgrp, "tcp", 22, 22, "0.0.0.0/0")
+        elif self.name == "aws":
+            # Create a security group on aws
+            self.secgrp = self.connection.ex_create_security_group(self.secgrp_name, self.secgrp_name)
+            self.connection.ex_authorize_security_group_permissive(self.secgrp_name)
+            self.secgrp = self.secgrp_name
+        elif self.name == "exoscale":
+            self.secgrp = self.connection.ex_create_security_group(self.secgrp_name)
+            self.connection.ex_authorize_security_group_ingress(self.secgrp_name, "tcp", "0.0.0.0/0", 22, 22)
+            self.secgrp = self.secgrp_name
+        elif self.name == "azure":
+            pass
+        elif self.name == "google":
+            pass
+        else:
+            raise Exception('Provider not supported')
+
+    def clean(self):
+        if self.name == "switchengines":
+            self.connection.ex_delete_security_group(self.secgrp)
+        elif self.name == "aws":
+            self.connection.ex_delete_security_group(self.secgrp)
+        elif self.name == "exoscale":
+            self.connection.ex_delete_security_group(self.secgrp)
+        elif self.name == "azure":
+            pass
+        elif self.name == "google":
+            pass
+        else:
+            raise Exception('Provider not supported')
