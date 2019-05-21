@@ -19,18 +19,28 @@ def run():
 
     providers_config = ConfigParser.ConfigParser()
     providers_config.read(args.providers)
-    providers = dict()
-    for provider_name in providers_config.sections():
-        regions = providers_config.get(provider_name, "regions").split(',')
-        providers[provider_name] = dict()
-        for region in regions:
-            region = region.strip()
-            data = dict(providers_config.items(provider_name))
-            data.pop("regions")
-            providers[provider_name][region] = Provider(provider_name, region, data)
-
     instances_config = ConfigParser.ConfigParser()
     instances_config.read(args.instances)
+
+    nthreads = len(instances_config.sections())
+    if args.nThreads is not None:
+        nthreads = args.nThreads
+    semaphore = threading.BoundedSemaphore(nthreads)
+
+    providers = dict()
+    for provider_name in providers_config.sections():
+        if providers_config.has_option(provider_name, "regions"):
+            regions = providers_config.get(provider_name, "regions").split(',')
+            providers[provider_name] = dict()
+            for region in regions:
+                region = region.strip()
+                data = dict(providers_config.items(provider_name))
+                data.pop("regions")
+                providers[provider_name][region] = Provider(provider_name, region, data)
+        else:
+            data = dict(providers_config.items(provider_name))
+            providers[provider_name] = Provider(provider_name, "", data)
+
     jobs = list()
     for instance_name in instances_config.sections():
         provider = instances_config.get(instance_name, "provider")
@@ -38,17 +48,25 @@ def run():
         flavor = instances_config.get(instance_name, "flavor")
         image = instances_config.get(instance_name, "image")
         instance = Instance(providers[provider][region], instance_name, flavor, image)
-        bench = Benchmark(instance, keypair)
+        bench = Benchmark(instance, keypair, semaphore)
         jobs.append(bench)
 
-    nthreads = len(jobs)
-    if args.nThreads is not None:
-        nthreads = args.nThreads
-
-    while jobs:
-        if threading.active_count() <= nthreads:
-            job = jobs.pop()
+    for job in jobs:
             job.start()
+
+    for job in jobs:
+        job.join()
+
+    for provider_name in providers:
+        if providers_config.has_option(provider_name, "regions"):
+            regions = providers_config.get(provider_name, "regions").split(',')
+            for region in regions:
+                region = region.strip()
+                providers[provider_name][region].clean()
+        else:
+            providers[provider_name].clean()
+
+    print("all threads are finished", threading.active_count())
 
 
 if __name__ == '__main__':
