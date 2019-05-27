@@ -1,6 +1,5 @@
 from Provider import Provider
 
-
 user_data_template = """#!/usr/bin/env bash
 echo "{}" >> /home/ubuntu/.ssh/authorized_keys
 chown -R ubuntu:ubuntu /home/ubuntu
@@ -31,18 +30,8 @@ class Instance:
         :return:
         """
         conn = self.provider.connection
-
         image_id = [i for i in conn.list_images() if i.name == self.image or i.id == self.image][0]
         flavor = [f for f in conn.list_sizes() if f.name == self.flavor][0]
-        #Mapping to create a volume of 20GB on AWS
-        mapping = [
-            {"VirtualName": None,
-             "Ebs": {
-                 "VolumeSize": 20,
-                 "VolumeType": "gp2",
-                 "DeleteOnTermination": "true"},
-             "DeviceName": "/dev/sda1"}
-        ]
 
         user_data = user_data_template.format(ssh_public_key)
 
@@ -53,23 +42,33 @@ class Instance:
         node_params["ex_userdata"] = user_data
         node_params["ex_security_groups"] = [self.provider.secgrp]
         if self.provider.name == "aws":
-            node_params["ex_blockdevicemappings"] = mapping
+            node_params["ex_blockdevicemappings"] = [
+                {"VirtualName": None,
+                 "Ebs": {
+                     "VolumeSize": 20,
+                     "VolumeType": "gp2",
+                     "DeleteOnTermination": "true"},
+                 "DeviceName": "/dev/sda1"}
+            ]
 
         node = conn.create_node(**node_params)
         running_node = conn.wait_until_running([node], wait_period=3, timeout=600, ssh_interface=self.provider.ip_type)
 
         if self.provider.ip_type == "private_ips":
-                floating_ip = self.__create_attach_floating_ip(conn, running_node[0][0])
-                self.public_ip = floating_ip.ip_address
+            floating_ip = self.__create_attach_floating_ip(conn, running_node[0][0])
+            self.public_ip = floating_ip.ip_address
         else:
             self.public_ip = running_node[0][0].public_ips[0]
         self.node = running_node[0][0]
         return
 
     def delete(self):
-        if self.provider.ip_type == "private_ips":
-            self.provider.connection.ex_delete_floating_ip(self.provider.connection.ex_get_floating_ip(self.public_ip))
-        self.node.destroy()
+        if self.node is not None:
+            if self.provider.ip_type == "private_ips":
+                self.provider.connection.ex_delete_floating_ip(self.provider.connection.ex_get_floating_ip(self.public_ip))
+            self.node.destroy()
+        else:
+            print self.name + "is None"
 
     def __create_attach_floating_ip(self, conn, instance):
         pool = conn.ex_list_floating_ip_pools()[0]

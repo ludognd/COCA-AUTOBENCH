@@ -5,6 +5,7 @@ from Crypto.PublicKey import RSA
 import argparse
 import ConfigParser
 import threading
+import os
 
 def run():
     parser = argparse.ArgumentParser(description='Run benchmarks in all instances defined by the config file')
@@ -17,6 +18,14 @@ def run():
     key = RSA.generate(2048)
     keypair = (key.exportKey('PEM'), key.publickey().exportKey('OpenSSH'))
 
+    pkey_name = "coca-bench.pem"
+
+    os.system("chmod 777 " + pkey_name)
+    file1 = open(pkey_name, "w")
+    file1.write(keypair[0])
+    file1.close()
+    os.system("chmod 400 " + pkey_name)
+
     providers_config = ConfigParser.ConfigParser()
     providers_config.read(args.providers)
     instances_config = ConfigParser.ConfigParser()
@@ -27,27 +36,20 @@ def run():
         nthreads = args.nThreads
     semaphore = threading.BoundedSemaphore(nthreads)
 
-    providers = dict()
-    for provider_name in providers_config.sections():
-        if providers_config.has_option(provider_name, "regions"):
-            regions = providers_config.get(provider_name, "regions").split(',')
-            providers[provider_name] = dict()
-            for region in regions:
-                region = region.strip()
-                data = dict(providers_config.items(provider_name))
-                data.pop("regions")
-                providers[provider_name][region] = Provider(provider_name, region, data)
-        else:
-            data = dict(providers_config.items(provider_name))
-            providers[provider_name] = Provider(provider_name, "", data)
-
     jobs = list()
     for instance_name in instances_config.sections():
-        provider = instances_config.get(instance_name, "provider")
-        region = instances_config.get(instance_name, "region")
+        provider_name = instances_config.get(instance_name, "provider")
         flavor = instances_config.get(instance_name, "flavor")
         image = instances_config.get(instance_name, "image")
-        instance = Instance(providers[provider][region], instance_name, flavor, image)
+        if instances_config.has_option(instance_name, "region"):
+            region = instances_config.get(instance_name, "region")
+            provider_data = dict(providers_config.items(provider_name))
+            provider = Provider(provider_name, region, provider_data)
+            instance = Instance(provider, instance_name, flavor, image)
+        else:
+            provider_data = dict(providers_config.items(provider_name))
+            provider = Provider(provider_name, "", provider_data)
+            instance = Instance(provider, instance_name, flavor, image)
         bench = Benchmark(instance, keypair, semaphore)
         jobs.append(bench)
 
@@ -57,16 +59,7 @@ def run():
     for job in jobs:
         job.join()
 
-    for provider_name in providers:
-        if providers_config.has_option(provider_name, "regions"):
-            regions = providers_config.get(provider_name, "regions").split(',')
-            for region in regions:
-                region = region.strip()
-                providers[provider_name][region].clean()
-        else:
-            providers[provider_name].clean()
-
-    print("all threads are finished", threading.active_count())
+    print("all threads are finished")
 
 
 if __name__ == '__main__':

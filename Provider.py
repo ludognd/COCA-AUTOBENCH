@@ -15,10 +15,8 @@ class Provider:
         self.region = region
         self.connection = self.__create_connection(config)
         self.secgrp_name = str(uuid.uuid4())
-        self.__create_environment()
 
     def __create_connection(self, data):
-        print data, type(data)
         if self.name == "switchengines":
             self.ip_type = "private_ips"
             driver = get_driver(LibCloudProvider.OPENSTACK)
@@ -47,7 +45,7 @@ class Provider:
         else:
             raise Exception('Not supported provider')
 
-    def __create_environment(self):
+    def create_environment(self):
         if self.name == "switchengines":
             self.secgrp = self.connection.ex_create_security_group(self.secgrp_name, self.secgrp_name)
             self.connection.ex_create_security_group_rule(self.secgrp, "tcp", 22, 22, "0.0.0.0/0")
