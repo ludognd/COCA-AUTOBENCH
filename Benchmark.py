@@ -1,9 +1,10 @@
-import requests
-from typing import Tuple
 import threading
 import time
+
+import requests
+from typing import Tuple
+
 from Instance import Instance
-import traceback
 
 API_URL = 'http://86.119.37.171:15000'
 
@@ -41,7 +42,7 @@ class Benchmark(threading.Thread):
             "Done benchmarking instance " + self.__instance.name + " with code " + str(bench_result[0]) + "\nmessage: "
             + str(bench_result[1]) + " \ndeleting instance"),
         self.__instance.delete()
-        time.sleep(180)  # Waiting for instance state to reach terminated
+        time.sleep(60)  # Waiting for instance state to reach terminated
         print "{0}\n".format("Deleted " + self.__instance.name),
         self.__instance.provider.clean()
         self.semaphore.release()
@@ -51,8 +52,8 @@ class Benchmark(threading.Thread):
         r = requests.post(API_URL + '/benchmark/',
                           json={
                               'serverIP': self.__instance.public_ip,
-                              'ServiceProvider': self.__instance.provider.name+"-reg-"+self.__instance.provider.region,
-                              'Flavor': self.__instance.flavor,
+                              'serviceprovider': self.__instance.provider.name + "-reg-" + self.__instance.provider.region,
+                              'flavor': self.__instance.flavor,
                               'userName': self.__instance.username,
                               'privateKey': self.__ssh_key[0]
                           })

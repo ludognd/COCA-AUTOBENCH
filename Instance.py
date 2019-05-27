@@ -1,3 +1,5 @@
+import time
+
 from Provider import Provider
 
 user_data_template = """#!/usr/bin/env bash
@@ -30,7 +32,9 @@ class Instance:
         :return:
         """
         conn = self.provider.connection
-        image_id = [i for i in conn.list_images() if i.name == self.image or i.id == self.image][0]
+        start_time = time.clock()
+        image_id = self.provider.get_image(self.image)
+        print "time for find image of provider {}: {}".format(self.provider.name, time.clock() - start_time)
         flavor = [f for f in conn.list_sizes() if f.name == self.flavor][0]
 
         user_data = user_data_template.format(ssh_public_key)
@@ -65,12 +69,14 @@ class Instance:
     def delete(self):
         if self.node is not None:
             if self.provider.ip_type == "private_ips":
-                self.provider.connection.ex_delete_floating_ip(self.provider.connection.ex_get_floating_ip(self.public_ip))
+                self.provider.connection.ex_delete_floating_ip(
+                    self.provider.connection.ex_get_floating_ip(self.public_ip))
             self.node.destroy()
         else:
             print self.name + "is None"
 
-    def __create_attach_floating_ip(self, conn, instance):
+    @staticmethod
+    def __create_attach_floating_ip(conn, instance):
         pool = conn.ex_list_floating_ip_pools()[0]
         floating_ip = pool.create_floating_ip()
         conn.ex_attach_floating_ip_to_node(instance, floating_ip)

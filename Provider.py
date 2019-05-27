@@ -1,7 +1,10 @@
+import uuid
+
 from libcloud.compute.base import NodeDriver
 from libcloud.compute.providers import get_driver
 from libcloud.compute.types import Provider as LibCloudProvider
-import uuid
+
+from ImageNotFoundError import ImageNotFoundError
 
 
 class Provider:
@@ -9,6 +12,7 @@ class Provider:
     name = None  # type: str
     region = None  # type: str
     ip_type = "public_ips"  # type: str
+    secgrp = None
 
     def __init__(self, name, region, config):
         self.name = name
@@ -24,10 +28,10 @@ class Provider:
             username = data['username']
             password = data['password']
             return driver(username, password,
-                                  ex_tenant_name=project,
-                                  ex_force_auth_url='https://keystone.cloud.switch.ch:5000',
-                                  ex_force_auth_version='3.x_password',
-                                  ex_force_service_region=self.region)
+                          ex_tenant_name=project,
+                          ex_force_auth_url='https://keystone.cloud.switch.ch:5000',
+                          ex_force_auth_version='3.x_password',
+                          ex_force_service_region=self.region)
         elif self.name == "aws":
             driver = get_driver(LibCloudProvider.EC2)
             access = data['access']
@@ -78,3 +82,13 @@ class Provider:
             pass
         else:
             raise Exception('Provider not supported')
+
+    def get_image(self, image):
+        try:
+            return self.connection.get_image(image)
+        except NotImplementedError:
+            images = [i for i in self.connection.list_images() if i.name == image or i.id == image]
+            if isinstance(images, list) and 0 < len(images):
+                return images[0]
+            else:
+                raise ImageNotFoundError("image {} not found".format(image))

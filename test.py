@@ -1,29 +1,43 @@
+import threading
+
+from Crypto.PublicKey import RSA
+
 from Benchmark import Benchmark
 from Instance import Instance
 from Provider import Provider
 
 
 def run():
-    provider = Provider(
-        name='exoscale',
-        access_key='EXO84e091ac6a22bf8fb7b916f2',
-        secret_key='-DU8_52ivubZb0-hdrx788GKtbTjw7r32LUOlFKV_VA',
-        url='https://api.exoscale.com/compute'
-    )
+    config_exo = {
+        'access': 'EXO84e091ac6a22bf8fb7b916f2',
+        'secret': '-DU8_52ivubZb0-hdrx788GKtbTjw7r32LUOlFKV_VA'
+    }
 
-    instance = Instance('Medium', 'Linux Ubuntu 18.04 LTS 64-bit')
+    config_aws = {
+        'access': '',
+        'secret': ''
+    }
 
-    with open('/home/david/.ssh/piIot') as f:
-        private_key = f.read()
+    provider_exo = Provider(name='exoscale', config=config_exo, region='')
+    provider_aws = Provider(name='aws', config=config_aws, region='us-east-1')
+    semaphore = threading.BoundedSemaphore(2)
 
-    with open('/home/david/.ssh/piIot.pub') as f:
-        public_key = f.read()
+    instance_exo = Instance(provider_exo, 'test', 'Medium', 'Linux Ubuntu 18.04 LTS 64-bit')
+    instance_aws = Instance(provider_aws, 'COCA-BENCH', 't2.micro', 'ami-0a313d6098716f372')
 
-    benchmark = Benchmark(provider, instance, (private_key, public_key))
+    key = RSA.generate(2048)
+    keypair = (key.exportKey('PEM'), key.publickey().exportKey('OpenSSH'))
 
-    benchmark.run()
+    benchmark_exo = Benchmark(instance_exo, keypair, semaphore)
+    # benchmark_aws = Benchmark(instance_aws, keypair, semaphore)
 
-    pass
+    print "start tests"
+    benchmark_exo.start()
+    # benchmark_aws.start()
+    print "wait threads"
+    benchmark_exo.join()
+    # benchmark_aws.join()
+    print "end"
 
 
 if __name__ == '__main__':

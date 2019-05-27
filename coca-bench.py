@@ -1,11 +1,14 @@
-from Provider import Provider
-from Instance import Instance
-from Benchmark import Benchmark
-from Crypto.PublicKey import RSA
-import argparse
 import ConfigParser
-import threading
+import argparse
 import os
+import threading
+
+from Crypto.PublicKey import RSA
+
+from Benchmark import Benchmark
+from Instance import Instance
+from Provider import Provider
+
 
 def run():
     parser = argparse.ArgumentParser(description='Run benchmarks in all instances defined by the config file')
@@ -54,7 +57,7 @@ def run():
         jobs.append(bench)
 
     for job in jobs:
-            job.start()
+        job.start()
 
     for job in jobs:
         job.join()
