@@ -1,5 +1,3 @@
-import time
-
 from Provider import Provider
 
 user_data_template = """#!/usr/bin/env bash
@@ -13,15 +11,17 @@ class Instance:
     flavor = None  # type: str
     image = None  # type: str
     public_ip = None  # type: str
-    username = None  # type: str
+    username = "ubuntu"  # type: str
     node = None  # type: Node
     secgrp_name = "COCA-BENCH"  # type: str
 
-    def __init__(self, provider, name, flavor, image):
+    def __init__(self, provider, name, flavor, image, username=None):
         self.provider = provider
         self.flavor = flavor
         self.image = image
         self.name = name
+        if username is not None:
+            self.username = username
         self.secgrp_name = self.secgrp_name + "-" + self.name
 
     def create(self, ssh_public_key):
@@ -32,9 +32,7 @@ class Instance:
         :return:
         """
         conn = self.provider.connection
-        start_time = time.clock()
         image_id = self.provider.get_image(self.image)
-        print "time for find image of provider {}: {}".format(self.provider.name, time.clock() - start_time)
         flavor = [f for f in conn.list_sizes() if f.name == self.flavor][0]
 
         user_data = user_data_template.format(ssh_public_key)
@@ -54,6 +52,8 @@ class Instance:
                      "DeleteOnTermination": "true"},
                  "DeviceName": "/dev/sda1"}
             ]
+        if self.provider.name == "exoscale":
+            node_params["ex_rootdisksize"] = "20"
 
         node = conn.create_node(**node_params)
         running_node = conn.wait_until_running([node], wait_period=3, timeout=600, ssh_interface=self.provider.ip_type)
