@@ -53,6 +53,8 @@ class Instance:
                  "DeviceName": "/dev/sda1"}
             ]
         if self.provider.name == "exoscale":
+            region = str.lower(self.provider.region)
+            node_params["location"] = [l for l in conn.list_locations() if l.name == region][0]
             node_params["ex_rootdisksize"] = "20"
 
         node = conn.create_node(**node_params)
@@ -72,8 +74,6 @@ class Instance:
                 self.provider.connection.ex_delete_floating_ip(
                     self.provider.connection.ex_get_floating_ip(self.public_ip))
             self.node.destroy()
-        else:
-            print self.name + "is None"
 
     @staticmethod
     def __create_attach_floating_ip(conn, instance):

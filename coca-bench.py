@@ -48,14 +48,9 @@ def run():
         username = None
         if instances_config.has_option(instance_name, "username"):
             username = instances_config.get(instance_name, "username")
-        if instances_config.has_option(instance_name, "region"):
-            region = instances_config.get(instance_name, "region")
-            provider = Provider(provider_name, region, provider_data)
-            instance = Instance(provider, instance_name, flavor, image, username)
-        else:
-            provider_data = dict(providers_config.items(provider_name))
-            provider = Provider(provider_name, "", provider_data)
-            instance = Instance(provider, instance_name, flavor, image, username)
+        region = instances_config.get(instance_name, "region")
+        provider = Provider(provider_name, region, provider_data)
+        instance = Instance(provider, instance_name, flavor, image, username)
         bench = Benchmark(instance, keypair, semaphore)
         jobs.append(bench)
 
